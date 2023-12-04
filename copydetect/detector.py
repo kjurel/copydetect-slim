@@ -3,26 +3,24 @@ a set of test files (files to check for plagairism) and a set of
 reference files (files that might have been plagairised from).
 """
 
-from pathlib import Path
-import time
-import logging
-import webbrowser
-import pkg_resources
-import io
 import base64
+import io
 import json
+import logging
+import time
+import webbrowser
+from pathlib import Path
 
-from tqdm import tqdm
 import numpy as np
-import matplotlib.pyplot as plt
-from jinja2 import Template
+import pkg_resources
+from tqdm import tqdm
 
-from .utils import (filter_code, highlight_overlap, get_copied_slices,
-                    get_document_fingerprints, find_fingerprint_overlap,
-                    get_token_coverage)
-from . import __version__
-from . import defaults
+from . import __version__, defaults
 from ._config import CopydetectConfig
+from .utils import (filter_code, find_fingerprint_overlap, get_copied_slices,
+                    get_document_fingerprints, get_token_coverage,
+                    highlight_overlap)
+
 
 class CodeFingerprint:
     """Class for tokenizing, filtering, fingerprinting, and winnowing
@@ -534,6 +532,14 @@ class CopyDetector:
             by self.out_file. If "return", the output HTML will be
             directly returned by this function.
         """
+        
+        try:
+            import matplotlib.pyplot as plt
+            from jinja2 import Template
+        except ImportError as E:
+            print(E, "install using copydetect[html]")
+            return
+        
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate report: no files compared")
             return
