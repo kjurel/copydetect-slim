@@ -7,10 +7,9 @@ import logging
 import warnings
 from typing import Dict, List
 
-from pygments import lexers, token
-import pygments.util
 import numpy as np
-from markupsafe import escape
+import pygments.util
+from pygments import lexers, token
 
 # if the C extention is available, use it. For almost all use cases
 # the speed difference is not significant so if the C extention isn't
@@ -19,6 +18,7 @@ try:
     from .winnow import _winnow
 except (ModuleNotFoundError, ImportError):
     from .pywinnow import _winnow
+
 
 def filter_code(code, filename, language=None):
     """Tokenize and filter a code document. Replace variable names with
@@ -45,7 +45,7 @@ def filter_code(code, filename, language=None):
 
     out_code = ""
     offset = 0
-    offsets = [[0,0]]
+    offsets = [[0, 0]]
     variable_tokens = {token.Name, token.Name.Variable, token.Name.Attribute}
     for t in tokens:
         if t[0] in variable_tokens:
@@ -78,11 +78,15 @@ def filter_code(code, filename, language=None):
             out_code += t[1]
     return out_code, np.array(offsets)
 
+
 def hashed_kgrams(string, k):
     """Return hashes of all k-grams in a string"""
-    hashes = [hash(string[offset:offset+k])
-              for offset in range(len(string) - k + 1)]
+    hashes = [
+        hash(string[offset:offset + k])
+        for offset in range(len(string) - k + 1)
+    ]
     return np.array(hashes)
+
 
 def winnow(hashes, window_size, remove_duplicates=True):
     """implementation of the robust winnowing algorithm decribed in
@@ -107,6 +111,7 @@ def winnow(hashes, window_size, remove_duplicates=True):
 
     return selected_hashes, selected_idx
 
+
 def get_copied_slices(idx, k):
     """Given k and a list of indexes detected by
     find_fingerprint_overlap, generates a list of slices where the
@@ -115,7 +120,7 @@ def get_copied_slices(idx, k):
     slice end locations.
     """
     if len(idx) == 0:
-        return np.array([[],[]])
+        return np.array([[], []])
 
     # determine the gaps between slices (called skips)
     sorted_idx = np.sort(idx)
@@ -124,9 +129,10 @@ def get_copied_slices(idx, k):
 
     # use the elements around the gaps to compute slice start/ends
     slice_starts = np.concatenate([[sorted_idx[0]], sorted_idx[skips + 1]])
-    slice_ends = np.concatenate([sorted_idx[skips]+k, [sorted_idx[-1]+k]])
+    slice_ends = np.concatenate([sorted_idx[skips] + k, [sorted_idx[-1] + k]])
 
     return np.array([slice_starts, slice_ends])
+
 
 def get_document_fingerprints(doc, k, window_size, boilerplate=None):
     """Given a document, computes all k-gram hashes and uses the
@@ -137,11 +143,12 @@ def get_document_fingerprints(doc, k, window_size, boilerplate=None):
     if boilerplate is None:
         boilerplate = []
     all_hashes = hashed_kgrams(doc, k=k)
-    hashes, idx = winnow(
-        all_hashes, window_size=window_size, remove_duplicates=False
-    )
+    hashes, idx = winnow(all_hashes,
+                         window_size=window_size,
+                         remove_duplicates=False)
     if len(boilerplate) > 0:
-        _, overlap_idx, _ = np.intersect1d(hashes, boilerplate,
+        _, overlap_idx, _ = np.intersect1d(hashes,
+                                           boilerplate,
                                            return_indices=True,
                                            assume_unique=True)
         idx = np.delete(idx, overlap_idx)
@@ -154,6 +161,7 @@ def get_document_fingerprints(doc, k, window_size, boilerplate=None):
         else:
             hash_dict[hash_val].append(i)
     return set(hashes), hash_dict
+
 
 def find_fingerprint_overlap(hashes1, hashes2, idx1, idx2):
     """Finds the indexes of overlapping values between two lists of
@@ -169,8 +177,13 @@ def find_fingerprint_overlap(hashes1, hashes2, idx1, idx2):
     else:
         return np.array([], dtype=int), np.array([], dtype=int)
 
-def highlight_overlap(doc, slices, left_hl, right_hl,
-                      truncate=-1, escape_html=False):
+
+def highlight_overlap(doc,
+                      slices,
+                      left_hl,
+                      right_hl,
+                      truncate=-1,
+                      escape_html=False):
     """Highlights copied code in a document given the slices containing
     copied code and strings to use for the highlight start and end.
     Returns the document annoted with the highlight strings as well as
@@ -178,8 +191,10 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
     an integer, everything not within that many lines of highlighted
     code will be replaced with "..."
     """
+
+    from markupsafe import escape
     if slices.shape[0] > 0:
-        hl_percent = np.sum(slices[1] - slices[0])/len(doc)
+        hl_percent = np.sum(slices[1] - slices[0]) / len(doc)
     else:
         warnings.warn("empty slices array")
         return doc, 0
@@ -187,21 +202,23 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
     new_doc = ""
     current_idx = 0
     for slice_idx in range(slices.shape[1]):
-        start_idx = slices[0,slice_idx]
-        end_idx = slices[1,slice_idx]
+        start_idx = slices[0, slice_idx]
+        end_idx = slices[1, slice_idx]
 
         if escape_html:
             pre_highlight = str(escape(doc[current_idx:start_idx]))
-            highlighted = left_hl+str(escape(doc[start_idx:end_idx]))+right_hl
+            highlighted = left_hl + str(escape(
+                doc[start_idx:end_idx])) + right_hl
         else:
             pre_highlight = doc[current_idx:start_idx]
             highlighted = left_hl + doc[start_idx:end_idx] + right_hl
 
         if truncate >= 0:
             lines = pre_highlight.split("\n")
-            if slice_idx != 0 and len(lines) > truncate*2:
-                pre_highlight = ("\n".join(lines[:truncate+1]) + "\n\n...\n\n"
-                                 + "\n".join(lines[-truncate - 1:]))
+            if slice_idx != 0 and len(lines) > truncate * 2:
+                pre_highlight = ("\n".join(lines[:truncate + 1]) +
+                                 "\n\n...\n\n" +
+                                 "\n".join(lines[-truncate - 1:]))
             elif len(lines) > truncate:
                 pre_highlight = "\n".join(lines[-truncate - 1:])
 
@@ -220,6 +237,7 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
     new_doc += post_highlight
 
     return new_doc, hl_percent
+
 
 def get_token_coverage(idx: Dict[int, List[int]], k: int, token_len: int):
     """Determines the number of tokens in the original document which

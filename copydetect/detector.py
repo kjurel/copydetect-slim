@@ -18,8 +18,7 @@ from tqdm import tqdm
 from . import __version__, defaults
 from ._config import CopydetectConfig
 from .utils import (filter_code, find_fingerprint_overlap, get_copied_slices,
-                    get_document_fingerprints, get_token_coverage,
-                    highlight_overlap)
+                    get_document_fingerprints, get_token_coverage)
 
 
 class CodeFingerprint:
@@ -476,6 +475,7 @@ class CopyDetector:
             highlighted test code, highlighted reference code, numer of
             overlapping tokens]
         """
+        from .utils import highlight_overlap
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate code list: no files compared")
             return []
